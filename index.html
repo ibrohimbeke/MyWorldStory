@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>My World Story</title>
+  <link rel="stylesheet" href="main.css"/>
+  <link rel="stylesheet" href="leaflet.css"/>
+  <script src="leaflet.js"></script>
+</head>
+<body>
+  <div class="container">
+    <section class="form-section">
+      <h1>🌍 My World Story</h1>
+
+      <form id="storyForm" onsubmit="return false;">
+        <div class="form-group">
+          <label for="title">Title</label>
+          <input type="text" id="title" name="title" placeholder="Give your story a title" required/>
+        </div>
+
+        <div class="form-group">
+          <label for="story">Story</label>
+          <textarea id="story" name="story" rows="5" placeholder="Write your story here" required></textarea>
+        </div>
+
+        <div class="grid-2">
+          <div class="form-group">
+            <label for="latitude">Latitude</label>
+            <input type="number" id="latitude" name="latitude" step="0.000001" />
+          </div>
+          <div class="form-group">
+            <label for="longitude">Longitude</label>
+            <input type="number" id="longitude" name="longitude" step="0.000001" />
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button id="previousBtn" type="button">◀ Previous</button>
+          <button id="newBtn" type="button">＋ New</button>
+          <button id="saveBtn" type="button">💾 Save</button>
+          <button id="deleteBtn" type="button" class="danger">🗑 Delete</button>
+          <button id="nextBtn" type="button">Next ▶</button>
+        </div>
+
+        <p class="muted" id="statusLine"></p>
+      </form>
+    </section>
+
+    <section class="map-section">
+      <!-- Default view: Hamburg -->
+      <osm-map lat="53.550341" lng="10.000654" zoom="3"></osm-map>
+      <p class="muted">Tip: click on the map to drop a marker and fill latitude/longitude.</p>
+    </section>
+  </div>
+
+  <script type="module">
+    // Register the map web component
+    import { OSMMap } from './osm-map.js';
+    customElements.define('osm-map', OSMMap);
+
+    // Signals
+    import { signal, effect, computed } from './signal.js';
+
+    // Backend API
+    import { getMyWorldStory, newMyWorldStory, saveMyWorldStory, deleteMyWorldStory } from './main.js';
+
+    // === CONFIG ===
+    const ownerName = "Ibrohim Fattakhov";   // <-- set to your real name
+    const apiKey = "8b096105-61a0-4d21-adf6-6c7215a58fe5";
+
+    // === DOM ===
+    const titleInput = document.getElementById('title');
+    const storyInput = document.getElementById('story');
+    const latInput = document.getElementById('latitude');
+    const lngInput = document.getElementById('longitude');
+
+    const previousBtn = document.getElementById('previousBtn');
+    const newBtn = document.getElementById('newBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const deleteBtn = document.getElementById('deleteBtn');
+    const nextBtn = document.getElementById('nextBtn');
+
+    const statusLine = document.getElementById('statusLine');
+    const mapElement = document.querySelector('osm-map');
+
+    // === STATE (signals) ===
+    const id = signal(0);
+    const title = signal('');
+    const story = signal('');
+    const latitude = signal(53.550341);
+    const longitude = signal(10.000654);
+
+    // navigation helpers (from backend)
+    const previousEnable = signal(false);
+    const nextEnable = signal(false);
+    const newEnable = signal(true);
+    const deleteEnable = signal(false);
+
+    let prevId = 0;
+    let nextId = 0;
+
+    // track baseline to detect dirty state
+    let initialData = {
+      title: '',
+      story: '',
+      latitude: 53.550341,
+      longitude: 10.000654
+    };
+
+    const formDirty = computed(() =>
+      title.value !== initialData.title ||
+      story.value !== initialData.story ||
+      Number(latitude.value) !== Number(initialData.latitude) ||
+      Number(longitude.value) !== Number(initialData.longitude)
+    );
+
+    // === EFFECTS -> UI sync ===
+    // inputs reflect signals
+    effect(() => titleInput.value = title.value);
+    effect(() => storyInput.value = story.value);
+    effect(() => latInput.value = latitude.value);
+    effect(() => lngInput.value = longitude.value);
+
+    // signals update on input
+    titleInput.addEventListener('input', e => title.value = e.target.value);
+    storyInput.addEventListener('input', e => story.value = e.target.value);
+    latInput.addEventListener('input', e => latitude.value = parseFloat(e.target.value) || 0);
+    lngInput.addEventListener('input', e => longitude.value = parseFloat(e.target.value) || 0);
+
+    // buttons enable/disable
+    effect(() => previousBtn.disabled = !previousEnable.value);
+    effect(() => nextBtn.disabled = !nextEnable.value);
+    effect(() => newBtn.disabled = !newEnable.value);
+    effect(() => saveBtn.disabled = !formDirty.value);
+    effect(() => deleteBtn.disabled = !(deleteEnable.value && id.value > 0));
+
+    // map follows coordinates
+    const setMap = () => {
+      mapElement.setAttribute('lat', String(latitude.value));
+      mapElement.setAttribute('lng', String(longitude.value));
+      // center & marker
+      if (mapElement.clearMarkers) mapElement.clearMarkers();
+      if (mapElement.addMarker) mapElement.addMarker(latitude.value, longitude.value, title.value || 'Story location');
+      if (mapElement.flyTo) mapElement.flyTo(latitude.value, longitude.value, 6);
+    };
+    effect(setMap);
+
+    // clicking on the map updates lat/lng
+    mapElement.addEventListener('marker-set', (ev) => {
+      const { lat, lng } = ev.detail || {};
+      if (typeof lat === 'number' && typeof lng === 'number') {
+        latitude.value = +lat.toFixed(6);
+        longitude.value = +lng.toFixed(6);
+      }
+    });
+
+    // === HELPERS ===
+    function updateBaselineFromSignals() {
+      initialData = {
+        title: title.value,
+        story: story.value,
+        latitude: Number(latitude.value),
+        longitude: Number(longitude.value),
+      };
+    }
+
+    function applyServerRecord(data) {
+      // Expected server fields:
+      // id, title, story, latitude, longitude, previousID, nextID, newStoryOk, RecordCount
+      id.value = Number(data.id || 0);
+      title.value = data.title || '';
+      story.value = data.story || '';
+      latitude.value = Number(data.latitude ?? 53.550341);
+      longitude.value = Number(data.longitude ?? 10.000654);
+
+      prevId = Number(data.previousID || 0);
+      nextId = Number(data.nextID || 0);
+      previousEnable.value = prevId > 0;
+      nextEnable.value = nextId > 0;
+      newEnable.value = Boolean(data.newStoryOk !== false); // default true if missing
+      deleteEnable.value = Number(data.RecordCount || (id.value ? 1 : 0)) > 0;
+
+      // reflect coords on the map via effect
+      updateBaselineFromSignals();
+
+      // status text
+      const parts = [];
+      if (data.RecordCount != null) parts.push(`Total: ${data.RecordCount}`);
+      if (data.index != null) parts.push(`Index: ${data.index}`);
+      if (data.previousID) parts.push(`Prev: ${data.previousID}`);
+      if (data.nextID) parts.push(`Next: ${data.nextID}`);
+      statusLine.textContent = parts.join(' • ');
+    }
+
+    async function loadFirstRecord() {
+      try {
+        const record = await getMyWorldStory(apiKey, ownerName);
+        if (!record || record.error) {
+          // create a fresh record
+          const data = {
+            title: '',
+            story: '',
+            latitude: latitude.value,
+            longitude: longitude.value
+          };
+          const created = await newMyWorldStory(apiKey, ownerName, data);
+          applyServerRecord(created);
+        } else {
+          applyServerRecord(record);
+        }
+      } catch (err) {
+        console.error(err);
+        statusLine.textContent = 'Failed to load initial record.';
+      }
+    }
+
+    async function saveCurrentStory() {
+      try {
+        const payload = {
+          id: id.value || undefined,
+          title: title.value.trim(),
+          story: story.value.trim(),
+          latitude: Number(latitude.value),
+          longitude: Number(longitude.value)
+        };
+
+        let saved;
+        if (id.value && id.value > 0) {
+          saved = await saveMyWorldStory(apiKey, ownerName, payload);
+        } else {
+          saved = await newMyWorldStory(apiKey, ownerName, payload);
+        }
+        applyServerRecord(saved);
+      } catch (err) {
+        console.error(err);
+        alert('Save failed. Check console.');
+      }
+    }
+
+    async function deleteCurrentStory() {
+      if (!(id.value > 0)) return;
+      if (!confirm('Delete this story? This cannot be undone.')) return;
+      try {
+        await deleteMyWorldStory(apiKey, ownerName, id.value);
+        // Try load next; fallback previous; else create new
+        try {
+          const rec = await getMyWorldStory(apiKey, ownerName, nextId);
+          if (rec && rec.id) {
+            applyServerRecord(rec);
+            return;
+          }
+        } catch {}
+        try {
+          const rec2 = await getMyWorldStory(apiKey, ownerName, prevId);
+          if (rec2 && rec2.id) {
+            applyServerRecord(rec2);
+            return;
+          }
+        } catch {}
+        // Create fresh
+        const created = await newMyWorldStory(apiKey, ownerName, {
+          title: '',
+          story: '',
+          latitude: latitude.value,
+          longitude: longitude.value
+        });
+        applyServerRecord(created);
+      } catch (err) {
+        console.error(err);
+        alert('Delete failed. Check console.');
+      }
+    }
+
+    async function navigate(which) {
+      try {
+        const idToLoad = which === 'next' ? nextId : prevId;
+        if (!idToLoad) return;
+        const rec = await getMyWorldStory(apiKey, ownerName, idToLoad);
+        if (rec && !rec.error) {
+          applyServerRecord(rec);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // === EVENT WIRING ===
+    previousBtn.addEventListener('click', () => navigate('previous'));
+    nextBtn.addEventListener('click', () => navigate('next'));
+    newBtn.addEventListener('click', async () => {
+      if (!newEnable.value) return;
+      try {
+        const created = await newMyWorldStory(apiKey, ownerName, {
+          title: '',
+          story: '',
+          latitude: latitude.value,
+          longitude: longitude.value
+        });
+        applyServerRecord(created);
+      } catch (err) {
+        console.error(err);
+        alert('Could not create new story.');
+      }
+    });
+    saveBtn.addEventListener('click', saveCurrentStory);
+    deleteBtn.addEventListener('click', deleteCurrentStory);
+// === INIT ===
+    loadFirstRecord();
+  </script>
+</body>
+</html>

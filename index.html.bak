@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>World Story Book</title>
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <link rel="stylesheet" href="main.css" />
+    <link rel="stylesheet" href="leaflet.css" />
+    <script src="leaflet.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <section class="form-section">
+            <h1>My World Story</h1>
+
+            <form id="storyForm">
+                <div class="form-group">
+                    <label for="title">Title</label>
+                    <input type="text" id="title" name="title" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="story">Story</label>
+                    <textarea id="story" name="story" required placeholder="Your story..."></textarea>
+                </div>
+
+            </form>
+            <div class="nav-buttons">
+                <button type="button" class="nav-btn" id="previousBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 12L6 12M6 12l6-6M6 12l6 6" />
+                    </svg>
+                    Previous
+                </button>
+                <button type="button" class="nav-btn" id="newBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 5v14M5 12h14" />
+                    </svg>
+                    New
+                </button>
+                <button type="button" class="nav-btn" id="deleteBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path
+                            d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14zM10 11v6M14 11v6" />
+                    </svg>
+                    Delete
+                </button>
+                <button type="button" class="nav-btn" id="saveBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                        <polyline points="17,21 17,13 7,13 7,21" />
+                        <polyline points="7,3 7,8 15,8" />
+                    </svg>
+                    Save
+                </button>
+                <button type="button" class="nav-btn" id="nextBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M6 12L18 12M18 12l-6-6M18 12l-6 6" />
+                    </svg>
+                    Next
+                </button>
+            </div>
+        </section>
+
+        <section class="map-section">
+            <osm-map lat="51.505" lng="-0.09" zoom="13"></osm-map>
+        </section>
+    </div>
+
+    <script type="module">
+
+        // Import and register the map element
+        import { OSMMap } from './osm-map.js';
+        customElements.define('osm-map', OSMMap);
+
+        // Import the signal library
+        import { signal, effect, computed } from './signal.js';
+
+        import { getMyWorldStory, newMyWorldStory, saveMyWorldStory, deleteMyWorldStory } from './main.js'
+
+        const ownerName = "starterkit"; // Replace with your actual name
+        const apiKey = "8b096105-61a0-4d21-adf6-6c7215a58fe5";
+
+        // Hint: Understand how the app works, notice what is missing and then fix the app by adding
+        // the missing functionality.
+        
+        // getting the references to the DOM elements:
+
+        // Map element
+        const mapElement = document.querySelector('osm-map');
+
+        // Get form fields
+        const titleInput = document.getElementById('title');
+        const storyInput = document.getElementById('story');
+
+        // Get navigation buttons
+        const previousBtn = document.getElementById('previousBtn');
+        const newBtn = document.getElementById('newBtn');
+        const saveBtn = document.getElementById('saveBtn');
+        const deleteBtn = document.getElementById('deleteBtn');
+        const nextBtn = document.getElementById('nextBtn');
+
+        // signals are a modern way to store the state of the application.
+        // and to automatically update the UI when the state changes.
+
+        // signals to keep the state of the buttons
+        const previousEnable = signal(false);
+        const newEnable = signal(true);
+        const saveEnable = signal(true);
+
+        // signals to keep the state of the form fields
+        const id = signal(0);
+        const title = signal("");
+        const story = signal("");
+        const longitude = signal(0.0);
+        const latitude = signal(0.0);
+
+        let previousID = -1;
+        let nextID = -1;
+
+        // the initial state of the form data to check for changes.
+        const initialData = {
+            title: title.value,
+            story: story.value,
+            longitude: longitude.value,
+            latitude: latitude.value
+        };
+
+        // computed signal to check if the form has been modified
+        // this is a boolean value that is true if the form has been modified.
+        const formDirty = computed(() =>
+            title.value !== initialData.title ||
+            story.value !== initialData.story ||
+            longitude.value !== initialData.longitude ||
+            latitude.value !== initialData.latitude
+        );
+
+
+        // update the buttons' disabled state based on the signals
+        effect(() => previousBtn.disabled = !previousEnable.value);
+        effect(() => newBtn.disabled = !newEnable.value);
+        effect(() => saveBtn.disabled = !formDirty.value);
+        // add the missing effects
+
+        // Two-way data binding for form fields
+        // 1. Signal -> Input: Update input value when signal changes
+        effect(() => titleInput.value = title.value);
+        effect(() => storyInput.value = story.value);
+
+        // 2. Input -> Signal: Update signal when user types
+        titleInput.addEventListener('input', (e) => title.value = e.target.value);
+        storyInput.addEventListener('input', (e) => story.value = e.target.value);
+
+        // Update latitude and longitude signals when marker is set on the map
+        mapElement.addEventListener('marker-set', (event) => {
+            latitude.value = event.detail.lat;
+            longitude.value = event.detail.lng;
+        });
+
+
+        // setting up event listeners for the navigation buttons
+        // when a button is clicked, the corresponding function is called.
+        previousBtn.addEventListener('click', () => {
+            navigateToPreviousRecord();
+        });
+
+        newBtn.addEventListener('click', () => {
+            createNewStory();
+        });
+
+        deleteBtn.addEventListener('click', () => {
+            deleteCurrentStory();
+        });
+
+        saveBtn.addEventListener('click', () => {
+            saveCurrentStory();
+        });
+
+        nextBtn.addEventListener('click', () => {
+            navigateToNextRecord();
+        });
+
+
+        // updateSinalsAndMap is a helper function that takes the data from the API 
+        // and updates the signals and the map.
+        function updateSinalsAndMap(data) {
+            id.value = data.id;
+            title.value = data.title;
+            story.value = data.story;
+            longitude.value = data.longitude;
+            latitude.value = data.latitude;
+            previousID = data.previousID;
+            nextID = data.nextID;
+
+            // buttons:
+            formDirty.value = false;
+            previousEnable.value = data.previousID > 0;
+            newEnable.value = data.newStoryOk;
+            deleteEnable.value = data.RecordCount > 0;
+            saveEnable.value = formDirty.value;
+            nextEnable.value = data.nextID > 0;
+
+            // update map
+            mapElement.lat = latitude.value;
+            mapElement.lng = longitude.value;
+            mapElement.clearMarkers();
+            mapElement.addMarker(latitude.value, longitude.value, `${title.value} at ${latitude.value.toFixed(4)}, ${longitude.value.toFixed(4)}`);
+            mapElement.flyTo(latitude.value, longitude.value)
+        }
+
+        // load first story when app starts:
+        // add the functionality to create a new story if none is found.
+        getMyWorldStory(apiKey, ownerName)
+            .then(data => {
+                updateSinalsAndMap(data);
+                console.log("Data:", data)
+            })
+            .catch(err => console.error("Fetch failed:", err));
+
+        function navigateToPreviousRecord() {
+            // example to show how to fetch the previous story using the API:
+            getMyWorldStory(apiKey, ownerName, previousID)
+                .then(data => {
+                    updateSinalsAndMap(data);
+                })
+                .catch(err => console.error("Fetch failed:", err));
+        }
+
+        function createNewStory() {
+            // example to show how to create a new story using the API:
+            newMyWorldStory(apiKey, ownerName, {
+                title: "New Story",
+                story: "",
+                latitude: 53.5512, // start at the UE geolocation coordinates ;-)
+                longitude: 9.9343
+            })
+                .then(data => {
+                    console.log("New story created:", data);
+                    updateSinalsAndMap(data);
+                })
+                .catch(err => console.error("Failed to create a new story:", err));
+        }
+
+        function saveCurrentStory() {
+            // example to show how to save a story using the API:
+            if (formDirty.value) {
+                const storyData = {
+                    id: id.value,
+                    title: title.value,
+                    story: story.value,
+                    longitude: longitude.value,
+                    latitude: latitude.value,
+                };
+
+                saveMyWorldStory(apiKey, ownerName, storyData)
+                    .then(data => {
+                        // console.log("Story saved successfully:", data);
+                        if (data) {
+                            initialData.title = title.value;
+                            initialData.story = story.value;
+                            initialData.longitude = longitude.value;
+                            initialData.latitude = latitude.value;
+                            // Reset the dirty state of the form
+                            formDirty.value = false;
+                            // alert("Story saved successfully!");
+                        } else {
+                            alert("Failed to save the story.");
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Failed to save the story:", err);
+                        alert("An error occurred while saving the story.");
+                    });
+            }
+        }
+
+
+        function deleteCurrentStory() {
+            if (deleteEnable.value && confirm("Are you sure you want to delete this story?")) {
+                // complete this function to delete the current story
+            }
+        }
+
+        function navigateToNextRecord() {
+            // complete this function to navigate to the next record
+        }
+
+
+    </script>
+</body>
+
+</html>
