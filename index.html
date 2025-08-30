@@ -237,39 +237,27 @@
       }
     }
 
-    async function deleteCurrentStory() {
-      if (!(id.value > 0)) return;
-      if (!confirm('Delete this story? This cannot be undone.')) return;
-      try {
-        await deleteMyWorldStory(apiKey, ownerName, id.value);
-        // Try load next; fallback previous; else create new
-        try {
-          const rec = await getMyWorldStory(apiKey, ownerName, nextId);
-          if (rec && rec.id) {
-            applyServerRecord(rec);
-            return;
-          }
-        } catch {}
-        try {
-          const rec2 = await getMyWorldStory(apiKey, ownerName, prevId);
-          if (rec2 && rec2.id) {
-            applyServerRecord(rec2);
-            return;
-          }
-        } catch {}
-        // Create fresh
-        const created = await newMyWorldStory(apiKey, ownerName, {
-          title: '',
-          story: '',
-          latitude: latitude.value,
-          longitude: longitude.value
-        });
-        applyServerRecord(created);
-      } catch (err) {
-        console.error(err);
-        alert('Delete failed. Check console.');
-      }
-    }
+  async function deleteCurrentStory() {
+  if (!(id.value > 0)) return;
+  if (!confirm('Delete this story? This cannot be undone.')) return;
+
+  try {
+    await deleteMyWorldStory(apiKey, ownerName, id.value);
+
+    // Clear UI and create a new empty story
+    const created = await newMyWorldStory(apiKey, ownerName, {
+      title: '',
+      story: '',
+      latitude: latitude.value,
+      longitude: longitude.value
+    });
+    applyServerRecord(created);
+
+  } catch (err) {
+    console.error(err);
+    alert('Delete failed. Check console.');
+  }
+}
 
     async function navigate(which) {
       try {
