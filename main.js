@@ -86,22 +86,16 @@ export async function saveMyWorldStory(apiKey, ownerName, storyData) {
 }
 
 // deleteMyWorldStory deletes a story from the database by id.
-// main.js
-
 export async function deleteMyWorldStory(apiKey, ownerName, id) {
   if (!id) {
     throw new Error("An id must be provided to delete a story.");
   }
-
+  const encodedOwnerName = encodeURIComponent(ownerName);
   try {
     const response = await fetch(
-      `https://ue-code.eu/api/myworldstory/${ownerName}/${id}`,
+      `https://ue-code.eu/api/myworldstory/${id}?ownerName=${encodedOwnerName}&apiKey=${apiKey}`,
       {
         method: "DELETE",
-        headers: {
-          "x-api-key": apiKey,
-          "Content-Type": "application/json",
-        },
       }
     );
 
@@ -116,4 +110,3 @@ export async function deleteMyWorldStory(apiKey, ownerName, id) {
     throw error;
   }
 }
-
