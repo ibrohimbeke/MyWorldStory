@@ -1,71 +1,145 @@
-/* General button styles for a modern look */
-.btn-row button {
-  padding: 10px 20px;
-  font-size: 16px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-  flex-grow: 1; /* This will make buttons grow to fill the available space */
-}
-
-/* Specific colors for different buttons */
-#previousBtn, #nextBtn {
-  background-color: #555;
-  color: white;
-}
-#previousBtn:hover, #nextBtn:hover {
-  background-color: #777;
-}
-
-#newBtn, #saveBtn {
-  background-color: #28a745; /* A pleasant green color */
-  color: white;
-}
-#newBtn:hover, #saveBtn:hover {
-  background-color: #218838;
-}
-
-#deleteBtn {
-  background-color: #dc3545; /* Red for danger */
-  color: white;
-}
-#deleteBtn:hover {
-  background-color: #c82333;
-}
-
-/* Disabled button state */
-.btn-row button:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
-}
-
-/* Ensure consistent spacing */
-.btn-row {
-  display: flex;
-  gap: 10px; /* Space between buttons */
-  justify-content: space-between;
-  margin-top: 20px;
-}
-
-/* Add some styles to the form itself for a better layout */
-.form-section {
+body {
+  font-family: Arial, sans-serif;
+  line-height: 1.6;
+  margin: 0;
   padding: 20px;
-  background-color: #f9f9f9;
+  background-color: #f4f4f4;
+  color: #333;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+h1 {
+  text-align: center;
+  color: #2c3e50;
+  margin-bottom: 20px;
+}
+
+.form-section {
+  background-color: #fff;
+  padding: 30px;
   border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.form-group {
+  margin-bottom: 15px;
 }
 
 .form-group label {
+  display: block;
   font-weight: bold;
   margin-bottom: 5px;
-  display: block; /* Ensures labels are on their own line */
 }
 
-.form-group input, .form-group textarea {
+.form-group input,
+.form-group textarea {
   width: 100%;
-  padding: 8px;
-  border: 1px solid #ccc;
+  padding: 10px;
+  border: 1px solid #ddd;
   border-radius: 4px;
-  box-sizing: border-box; /* Makes sure padding doesn't affect the width */
+  box-sizing: border-box; /* Ensures padding doesn't affect the width */
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.btn-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.btn-row button {
+  flex-grow: 1; /* Makes buttons grow to fill space */
+  padding: 12px 15px;
+  font-size: 16px;
+  font-weight: bold;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, opacity 0.3s ease;
+}
+
+/* Specific button colors */
+#previousBtn, #nextBtn {
+  background-color: #3498db; /* Blue */
+  color: white;
+}
+#previousBtn:hover, #nextBtn:hover {
+  background-color: #2980b9;
+}
+
+#newBtn {
+  background-color: #2ecc71; /* Green */
+  color: white;
+}
+#newBtn:hover {
+  background-color: #27ae60;
+}
+
+#saveBtn {
+  background-color: #f39c12; /* Orange */
+  color: white;
+}
+#saveBtn:hover {
+  background-color: #e67e22;
+}
+
+#deleteBtn {
+  background-color: #e74c3c; /* Red */
+  color: white;
+}
+#deleteBtn:hover {
+  background-color: #c0392b;
+}
+
+.btn-row button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* This is the key change to make the map visible */
+.map-section {
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  height: 500px; /* You can adjust this height as needed */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Ensure the osm-map component fills its container */
+osm-map {
+  flex-grow: 1;
+}
+
+.muted {
+  font-size: 0.9em;
+  color: #7f8c8d;
+  text-align: center;
+  margin-top: 10px;
+}
+
+@media (min-width: 768px) {
+  .container {
+    flex-direction: row;
+  }
+  .form-section {
+    flex: 1;
+  }
+  .map-section {
+    flex: 1.5; /* Makes map section slightly larger than the form */
+  }
 }
